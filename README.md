@@ -43,7 +43,7 @@ DevOps-Team-Infrastructure-Lab/
 ### 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/DevOps-Team-Infrastructure-Lab.git
+git clone https://github.com/sandrocod/DevOps-Team-Infrastructure-Lab.git
 cd DevOps-Team-Infrastructure-Lab
 ```
 
@@ -102,4 +102,4 @@ Sinta-se à vontade para fazer um fork deste repositório, propor melhorias ou a
 
 ## Licença
 
-Este projeto está licenciado sob a Licença MIT. Veja o arquivo `LICENSE` para mais detalhes. (O arquivo LICENSE não está incluído neste projeto, mas é uma boa prática adicionar um.)
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
