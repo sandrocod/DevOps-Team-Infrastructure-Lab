@@ -20,18 +20,6 @@ error_exit() {
     exit 1
 }
 
-# --- 1. Criação de Grupos ---
-log_action "Criando grupos..."
-GROUPS=("developers" "testers" "project_managers" "admins")
-for GRP in "${GROUPS[@]}"; do
-    if ! getent group "$GRP" > /dev/null; then
-        sudo groupadd "$GRP" || error_exit "Falha ao criar o grupo $GRP."
-        log_action "Grupo '$GRP' criado."
-    else
-        log_action "Grupo '$GRP' já existe."
-    fi
-done
-
 # --- 2. Criação de Usuários e Atribuição a Grupos ---
 log_action "Criando usuários e atribuindo a grupos..."
 
@@ -44,14 +32,32 @@ USERS=(
     "admin1,admins,sudo"
 )
 
+# --- 1. Criação de Grupos ---
+log_action "Criando grupos..."
+# Mudamos o nome de GROUPS para LISTA_GRUPOS para evitar conflito com a variável reservada do Linux
+LISTA_GRUPOS=("developers" "testers" "project_managers" "admins")
+for GRP in "${LISTA_GRUPOS[@]}"; do
+    if ! getent group "$GRP" > /dev/null; then
+        sudo groupadd "$GRP" || error_exit "Falha ao criar o grupo $GRP."
+        log_action "Grupo '$GRP' criado."
+    else
+        log_action "Grupo '$GRP' já existe."
+    fi
+done
+
 for USER_DATA in "${USERS[@]}"; do
+    # Divide a string pelas vírgulas
     IFS=',' read -r USERNAME PRIMARY_GROUP SECONDARY_GROUPS <<< "$USER_DATA"
+
+    # Remove quebras de linha ou espaços residuais da string de grupos secundários
+    SECONDARY_GROUPS=$(echo "$SECONDARY_GROUPS" | tr -d '[:space:]')
 
     if ! id -u "$USERNAME" > /dev/null 2>&1; then
         log_action "Criando usuário '$USERNAME' com grupo primário '$PRIMARY_GROUP'."
         sudo useradd -m -g "$PRIMARY_GROUP" "$USERNAME" || error_exit "Falha ao criar o usuário $USERNAME."
         echo "$USERNAME:$DEFAULT_PASSWORD" | sudo chpasswd || error_exit "Falha ao definir senha para $USERNAME."
 
+        # Validação segura: só roda o usermod se a variável não estiver vazia
         if [ -n "$SECONDARY_GROUPS" ]; then
             log_action "Adicionando usuário '$USERNAME' aos grupos secundários: $SECONDARY_GROUPS."
             sudo usermod -aG "$SECONDARY_GROUPS" "$USERNAME" || error_exit "Falha ao adicionar $USERNAME aos grupos secundários."
@@ -59,8 +65,9 @@ for USER_DATA in "${USERS[@]}"; do
         log_action "Usuário '$USERNAME' criado e configurado."
     else
         log_action "Usuário '$USERNAME' já existe. Verificando grupos..."
-        # Garantir que o usuário esteja nos grupos corretos
         sudo usermod -g "$PRIMARY_GROUP" "$USERNAME" || error_exit "Falha ao definir grupo primário para $USERNAME."
+
+        # Validação segura para usuários existentes
         if [ -n "$SECONDARY_GROUPS" ]; then
             sudo usermod -aG "$SECONDARY_GROUPS" "$USERNAME" || error_exit "Falha ao adicionar $USERNAME aos grupos secundários."
         fi
@@ -95,8 +102,6 @@ for DIR_DATA in "${SUBDIRS[@]}"; do
 done
 
 # --- 4. Configuração de Permissões Adicionais (ACLs - Access Control Lists) ---
-# Para permissões mais granulares que o chmod tradicional não permite (e.g., tester1 lendo src/)
-# Requer o pacote 'acl' (sudo apt-get install acl)
 log_action "Configurando ACLs para permissões granulares..."
 
 # Instalar acl se não estiver presente
@@ -123,7 +128,7 @@ sudo setfacl -m g:testers:r-x "$PROJECT_PATH/docs" || error_exit "Falha ao confi
 # builds/: developers (rwx), testers (r), pm1 (r)
 sudo setfacl -m g:developers:rwx "$PROJECT_PATH/builds" || error_exit "Falha ao configurar ACL para builds/developers."
 sudo setfacl -m g:testers:r-x "$PROJECT_PATH/builds" || error_exit "Falha ao configurar ACL para builds/testers."
-sudo setfacl -m u:pm1:r-x "$PROJECT_PATH/build_alpha" || error_exit "Falha ao configurar ACL para builds/pm1."
+sudo setfacl -m u:pm1:r-x "$PROJECT_PATH/builds" || error_exit "Falha ao configurar ACL para builds/pm1."
 
 log_action "ACLs configuradas com sucesso."
 
